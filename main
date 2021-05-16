@@ -1,0 +1,93 @@
+from googleapiclient.discovery import build
+from google.oauth2 import service_account
+import imdb
+
+#CHANGE TIME TO HOURS AND MINUTES
+def time_change(time):
+    time = int(time[0])
+    hours = int(time/60)
+    if time%60 > 0:
+        minute = time%60
+        return (str(hours) +"h " +str(minute) +"min")
+    
+    return (str(hours) +"h")
+
+#IMDB API Search
+def imdb_API(movies):
+    ia = imdb.IMDb()
+    runtime_list = []
+    genre_list = []
+    final_list = []
+    url_list = []
+
+    # #Get runtimes
+    try:
+        search = ia.search_movie(movies[0]) #To get value from list of lists
+        id = search[0].movieID
+        movie = ia.get_movie(id)
+        runtimes = movie.data['runtimes']
+        time = time_change(runtimes)
+        runtime_list.append([time])
+    except KeyError:
+        runtime_list.append(['Time Null'])
+
+    try:
+        genres = movie.data['genres']
+        genre_list.append(genres)
+    except KeyError:
+        genre_list.append(['Genre Null'])
+
+    #To make genres in one list
+    for genres in genre_list:
+        s = ""
+        for i in range(len(genres)):
+            s += genres[i]
+            if i != len(genres)-1:
+                s += ","
+
+        final_list.append([s])
+
+    return runtime_list, final_list, url_list
+    
+def main():
+    #Search google sheets
+    SERVICE_ACCOUNT_FILE = 'keys.json'
+    SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+
+    creds = None
+    creds = service_account.Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+
+    # The ID and range of a sample spreadsheet.
+    SAMPLE_SPREADSHEET_ID = '167p9oeTPaaWLjNnlw24o_Av7rCSQNU0NGDAxzsXVKjM' #sheet id
+    
+    #range to start at
+    MIN_RANGE = 3
+    SAMPLE_SPREADSHEET_RANGE = "Movies!A3:A657"
+    TIME_RANGE = "Movies!B" 
+    GENRE_RANGE = "Movies!C" 
+
+    service = build('sheets', 'v4', credentials=creds)
+
+    # Call the Sheets API
+    sheet = service.spreadsheets()
+    result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
+                                range= SAMPLE_SPREADSHEET_RANGE ).execute()
+
+    values = result.get('values', [])
+
+    print("Working these movies: ", values)
+
+    #Write to spreadsheet
+    count = 0
+    for movies in values:
+        runtime_list, final_list, url_list = imdb_API(movies)
+        print("starting: ", movies[0])
+        
+        #Write onto google sheet
+        request = service.spreadsheets().values().update(spreadsheetId=SAMPLE_SPREADSHEET_ID, 
+                                    range=TIME_RANGE + str(MIN_RANGE + count), valueInputOption="USER_ENTERED", body={"values":runtime_list}).execute()
+        request = service.spreadsheets().values().update(spreadsheetId=SAMPLE_SPREADSHEET_ID, 
+                                    range=GENRE_RANGE + str(MIN_RANGE + count), valueInputOption="USER_ENTERED", body={"values":final_list}).execute()
+        count +=1 
+main()
