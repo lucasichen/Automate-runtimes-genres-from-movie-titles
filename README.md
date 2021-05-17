@@ -1,4 +1,4 @@
-# Automate movie database runtime and genre generator
+# automate runtimes and genres from movie titles in google sheets
 
 This code uses the Google and IMDB API to read a google sheets document for movie titles and will write runtimes and genres based on those titles. This only works if you have enabled, added a credential for google sheets api to your account, and shared the sheet to your API. To set this up use Google sheets API for python: https://developers.google.com/sheets/api/quickstart/python. Then add the credentials file to your code folder named: "keys.json"
 
